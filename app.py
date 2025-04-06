@@ -48,42 +48,105 @@ def get_streaming_response(model, user_input, temperature, max_tokens, message_p
 def main():
     # Page configuration
     st.set_page_config(page_title="Gemma Chatbot", layout="wide")
-    st.title("💬 Gemma Chatbot")
-
-    # Custom CSS for WhatsApp-like chat
+    
+    # Custom CSS for dark theme and enhanced chat styling
     st.markdown(
         """
         <style>
+        /* Dark theme for the entire app */
+        .stApp {
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+        
+        /* Sidebar styling */
+        .css-1d391kg {
+            background-color: #2d2d2d;
+        }
+        
+        /* Header styling */
+        .stMarkdown h1 {
+            color: #ffffff;
+        }
+        
+        /* Chat container styling */
         .chat-container {
             display: flex;
             flex-direction: column;
+            gap: 15px;
+            padding: 20px;
+            max-width: 900px;
+            margin: 0 auto;
         }
+        
         .message-row {
             width: 100%;
             display: flex;
-            margin-bottom: 5px;
+            margin-bottom: 10px;
         }
+        
+        /* User message styling */
         .user-message {
-            background-color: #dcf8c6; 
-            border-radius: 10px;
-            padding: 8px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 15px 15px 0 15px;
+            padding: 12px 18px;
             margin-left: auto;
-            clear: both;
-            text-align: right;
-            word-break: break-word;
+            max-width: 70%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            animation: fadeIn 0.3s ease-in;
         }
+        
+        /* Assistant message styling */
         .assistant-message {
-            background-color: #f0f0f0; 
-            border-radius: 10px;
-            padding: 8px 15px;
+            background-color: #424242;
+            color: #ffffff;
+            border-radius: 15px 15px 15px 0;
+            padding: 12px 18px;
             margin-right: auto;
-            text-align: left;
-            word-break: break-word; 
+            max-width: 70%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        /* Animation for messages */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Styling for input box */
+        .stTextInput input {
+            background-color: #333333;
+            color: white;
+            border: 1px solid #555555;
+            border-radius: 10px;
+        }
+        
+        /* Styling for buttons */
+        .stButton button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 8px 16px;
+            transition: background-color 0.3s;
+        }
+        
+        .stButton button:hover {
+            background-color: #45a049;
+        }
+        
+        /* Slider styling */
+        .stSlider {
+            color: #4CAF50;
         }
         </style>
         """,
         unsafe_allow_html=True,
     )
+
+    st.title("💬 Gemma Chatbot")
 
     # Initialize session states
     if "messages" not in st.session_state:
@@ -101,7 +164,7 @@ def main():
         st.session_state.messages = []
         st.rerun()
 
-    # Display chat history in correct order (newest at bottom)
+    # Display chat history
     st.markdown("<div class='chat-container'>", unsafe_allow_html=True)
     for message in st.session_state.messages:
         if message["role"] == "user":
@@ -110,7 +173,7 @@ def main():
                     <div class="user-message">{message["content"]}</div>
                 </div>
             """, unsafe_allow_html=True)
-        elif message["role"] == "assistant":
+        else:
             st.markdown(f"""
                 <div class="message-row">
                     <div class="assistant-message">{message["content"]}</div>
@@ -123,21 +186,14 @@ def main():
     if user_input:
         # Add user message to chat
         st.session_state.messages.append({"role": "user", "content": user_input})
-        st.markdown(f"""
-            <div class="message-row">
-                <div class="user-message">{user_input}</div>
-            </div>
-        """, unsafe_allow_html=True)
-
-        # Get model response
-        with st.markdown(f'<div class="message-row"><div class="assistant-message">', unsafe_allow_html=True) as assistant_container:
-            # Create placeholder for this specific response
+        
+        # Create a new container for the assistant's response
+        response_container = st.container()
+        
+        with response_container:
             message_placeholder = st.empty()
-
-            # Show thinking indicator in the placeholder
-            message_placeholder.markdown("🤔 Thinking...")
-
-            # Get and stream response using the same placeholder
+            
+            # Get and stream response
             response = get_streaming_response(
                 model=st.session_state.model,
                 user_input=user_input,
@@ -145,13 +201,12 @@ def main():
                 max_tokens=max_tokens,
                 message_placeholder=message_placeholder
             )
-            st.markdown(response + "</div></div>", unsafe_allow_html=True)
-
-
-        # Add assistant response to chat history
-        st.session_state.messages.append({"role": "assistant", "content": response})
-
-        # Rerun is no longer needed here as we are directly updating the display
+            
+            # Add assistant response to chat history
+            st.session_state.messages.append({"role": "assistant", "content": response})
+            
+            # Force a rerun to update the chat history properly
+            st.rerun()
 
 if __name__ == "__main__":
     main()

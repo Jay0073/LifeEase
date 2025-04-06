@@ -54,26 +54,31 @@ def main():
     st.markdown(
         """
         <style>
-        .stChatMessage.user {
-            background-color: #dcf8c6; /* Light green for user messages */
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+        }
+        .message-row {
+            width: 100%;
+            display: flex;
+            margin-bottom: 5px;
+        }
+        .user-message {
+            background-color: #dcf8c6; 
             border-radius: 10px;
             padding: 8px 15px;
-            margin-bottom: 5px;
-            float: right;
+            margin-left: auto;
             clear: both;
             text-align: right;
+            word-break: break-word;
         }
-        .stChatMessage.assistant {
-            background-color: #f0f0f0; /* Light grey for assistant messages */
+        .assistant-message {
+            background-color: #f0f0f0; 
             border-radius: 10px;
             padding: 8px 15px;
-            margin-bottom: 5px;
-            float: left;
-            clear: both;
+            margin-right: auto;
             text-align: left;
-        }
-        .stChatMessage div {
-            white-space: pre-wrap; /* Preserve line breaks */
+            word-break: break-word; 
         }
         </style>
         """,
@@ -97,20 +102,35 @@ def main():
         st.rerun()
 
     # Display chat history in correct order (newest at bottom)
+    st.markdown("<div class='chat-container'>", unsafe_allow_html=True)
     for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.write(message["content"])
+        if message["role"] == "user":
+            st.markdown(f"""
+                <div class="message-row">
+                    <div class="user-message">{message["content"]}</div>
+                </div>
+            """, unsafe_allow_html=True)
+        elif message["role"] == "assistant":
+            st.markdown(f"""
+                <div class="message-row">
+                    <div class="assistant-message">{message["content"]}</div>
+                </div>
+            """, unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
     # Handle user input
     user_input = st.chat_input("What would you like to ask?")
     if user_input:
         # Add user message to chat
         st.session_state.messages.append({"role": "user", "content": user_input})
-        with st.chat_message("user"):
-            st.write(user_input)
+        st.markdown(f"""
+            <div class="message-row">
+                <div class="user-message">{user_input}</div>
+            </div>
+        """, unsafe_allow_html=True)
 
         # Get model response
-        with st.chat_message("assistant"):
+        with st.markdown(f'<div class="message-row"><div class="assistant-message">', unsafe_allow_html=True) as assistant_container:
             # Create placeholder for this specific response
             message_placeholder = st.empty()
 
@@ -125,12 +145,13 @@ def main():
                 max_tokens=max_tokens,
                 message_placeholder=message_placeholder
             )
+            st.markdown(response + "</div></div>", unsafe_allow_html=True)
+
 
         # Add assistant response to chat history
         st.session_state.messages.append({"role": "assistant", "content": response})
 
-        # Rerun to update the chat history cleanly
-        st.rerun()
+        # Rerun is no longer needed here as we are directly updating the display
 
 if __name__ == "__main__":
     main()

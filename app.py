@@ -19,7 +19,7 @@ def initialize_model():
 
 def get_streaming_response(model, user_input, temperature, top_p, top_k, assistant_index, message_placeholder):
     """Generate streaming response from the model"""
-    prompt = f"<start_of_turn>user\n{user_input}<end_of_turn>\n<start_of_turn>model\n"
+    prompt = f"<start_of_turn>user\nRespond concisely with simple words:\n{user_input}<end_of_turn>\n<start_of_turn>model\n"
     full_response = ""
 
     for chunk in model(
@@ -28,6 +28,7 @@ def get_streaming_response(model, user_input, temperature, top_p, top_k, assista
         temperature=temperature,
         top_p=top_p,
         top_k=top_k,
+        stop=["<end_of_turn>"],
         stream=True
     ):
         chunk_text = chunk["choices"][0]["text"]

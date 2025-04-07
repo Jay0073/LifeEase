@@ -11,20 +11,35 @@ def initialize_model():
 
     return Llama(
         model_path=r"C:\Users\voutl\OneDrive\Documents\LifeEase\gemma-2-2b-it-Q5_K_M.gguf",
+        n_ctx=2048,
         n_batch=512,
         n_threads=8,
         n_gpu_layers=-1,
         seed=42,
     )
+    
+def format_conversation(messages):
+    formatted = ""
+    for msg in messages:
+        role = "user" if msg["role"] == "user" else "model"
+        formatted += f"<start_of_turn>{role}\n{msg['content']}<end_of_turn>\n"
+    return formatted
+
 
 def get_streaming_response(model, user_input, temperature, top_p, top_k, assistant_index, message_placeholder):
     """Generate streaming response from the model"""
-    prompt = f"<start_of_turn>user\nRespond concisely with simple words:\n{user_input}<end_of_turn>\n<start_of_turn>model\n"
+    conversation = format_conversation(st.session_state.messages)
+    
+    prompt = (
+        "Remember: You are a helpful, empathetic companion for people with disabilities. "
+        "Respond concisely and clearly. Avoid mentioning you are an AI or gemma or model.\n"
+        f"<start_of_turn>user\n{user_input}<end_of_turn>\n<start_of_turn>model\n"
+        ) if not conversation else conversation + f"<start_of_turn>user\n{user_input}<end_of_turn>\n<start_of_turn>model\n"
+
     full_response = ""
 
     for chunk in model(
         prompt,
-        max_tokens=150,
         temperature=temperature,
         top_p=top_p,
         top_k=top_k,

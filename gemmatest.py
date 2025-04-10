@@ -22,12 +22,12 @@ try:
     _ = model("test", max_tokens=1)  # This will be slow but subsequent runs will be faster
 
     # Format prompt according to Gemma's template
-    prompt = "<start_of_turn>user\nHi, how are you?<end_of_turn>\n<start_of_turn>model\n"
+    prompt = "<start_of_turn>user\nbut in some model cards, there are context lengths mentioned<end_of_turn>\n<start_of_turn>model\n"
 
     # With streaming
     model_answer = ""
     for chunk in model(prompt, 
-                      max_tokens=256,
+                      max_tokens=500,
                       temperature=0.7,
                       top_p=0.95,
                       top_k=40,

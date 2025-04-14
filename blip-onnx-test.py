@@ -3,9 +3,10 @@ from PIL import Image
 from pathlib import Path
 import onnxruntime as ort
 from transformers import BlipProcessor
+import traceback
 
 # --- Configuration ---
-MODEL_DIR = Path("C:/Users/voutl/OneDrive/Documents/LifeEase/blip_manual_onnx_export")
+MODEL_DIR = Path("./blip_manual_onnx_export")
 VISION_MODEL_PATH = MODEL_DIR / "vision_encoder.onnx"
 DECODER_INIT_PATH = MODEL_DIR / "decoder_init.onnx"
 DECODER_PAST_PATH = MODEL_DIR / "decoder_with_past.onnx"
@@ -72,8 +73,9 @@ def run_generation_loop(image_path: str, model_dir: Path, max_length: int = MAX_
                 }
                 outputs = decoder_past_session.run(None, inputs)
                 logits = outputs[0]
+                # Keep key names as 'past_*' to match model input expectations
                 past_key_values = {
-                    f"present_key_{i//2}" if i % 2 == 0 else f"present_value_{i//2}": outputs[i+1]
+                    f"past_key_{i//2}" if i % 2 == 0 else f"past_value_{i//2}": outputs[i+1]
                     for i in range(len(outputs[1:]))
                 }
 
@@ -102,8 +104,8 @@ def run_generation_loop(image_path: str, model_dir: Path, max_length: int = MAX_
 
 # --- Main Execution ---
 if __name__ == "__main__":
-    # Replace with your test image path
-    test_image_path = r"C:\Users\voutl\OneDrive\Pictures\ai.png" 
+    # Update with your test image path
+    test_image_path = r"C:\Users\voutl\OneDrive\Pictures\hanma wallpaper.jpg"  # From your output
     if not Path(test_image_path).exists():
         print(f"Image path {test_image_path} does not exist. Please provide a valid image path.")
     else:

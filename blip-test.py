@@ -91,15 +91,9 @@ def main():
         gemma_model = setup_gemma()
         blip_processor, blip_model, device = setup_blip()
 
-        # Example: Text input
-        print("\n--- Text Example ---")
-        user_input = "Tell me about quantum computing"
-        response = generate_response(gemma_model, user_input=user_input)
-        print("\nResponse:", response)
-
         # Example: Image input
         print("\n--- Image Example ---")
-        image_path = r"C:\Users\voutl\OneDrive\Pictures\ai.png"  # Replace with your image path
+        image_path = r"C:\Users\voutl\OneDrive\Pictures\Myself\Snapchat-530657582.jpg"  # Replace with your image path
         response = generate_response(
             gemma_model,
             blip_processor,

@@ -1,13 +1,11 @@
 import torch
 import torch.onnx
-from PIL import Image
-import os
 import numpy as np
 import traceback
 from pathlib import Path
 from transformers import BlipProcessor, BlipForConditionalGeneration, BlipConfig
 import onnxruntime as ort
-from typing import List, Tuple, Dict
+from typing import Dict
 from torch.nn import Module
 
 # --- Configuration ---
@@ -45,7 +43,7 @@ def verify_vision_encoder(model_path: Path, pixel_values: torch.Tensor) -> bool:
     """Verifies the vision encoder ONNX model."""
     try:
         session = ort.InferenceSession(str(model_path), providers=['CPUExecutionProvider'])
-        inputs = {'pixel_values': pixel_values.detach().cpu().numpy()}  # Detach tensor
+        inputs = {'pixel_values': pixel_values.detach().cpu().numpy()}
         outputs = session.run(None, inputs)
         print(f"Vision encoder verification: Output shape {outputs[0].shape}")
         return True
@@ -59,9 +57,9 @@ def verify_decoder_init(model_path: Path, input_ids: torch.Tensor, encoder_hidde
     try:
         session = ort.InferenceSession(str(model_path), providers=['CPUExecutionProvider'])
         inputs = {
-            'input_ids': input_ids.detach().cpu().numpy(),  # Detach tensor
-            'encoder_hidden_states': encoder_hidden_states.detach().cpu().numpy(),  # Detach tensor
-            'encoder_attention_mask': encoder_attention_mask.detach().cpu().numpy()  # Detach tensor
+            'input_ids': input_ids.detach().cpu().numpy(),
+            'encoder_hidden_states': encoder_hidden_states.detach().cpu().numpy(),
+            'encoder_attention_mask': encoder_attention_mask.detach().cpu().numpy()
         }
         outputs = session.run(None, inputs)
         print(f"Decoder init verification: Logits shape {outputs[0].shape}, Past key-values {len(outputs[1:])} tensors")
@@ -76,10 +74,10 @@ def verify_decoder_past(model_path: Path, input_ids: torch.Tensor, encoder_hidde
     try:
         session = ort.InferenceSession(str(model_path), providers=['CPUExecutionProvider'])
         inputs = {
-            'input_ids': input_ids.detach().cpu().numpy(),  # Detach tensor
-            'encoder_hidden_states': encoder_hidden_states.detach().cpu().numpy(),  # Detach tensor
-            'encoder_attention_mask': encoder_attention_mask.detach().cpu().numpy(),  # Detach tensor
-            **{k: v.detach().cpu().numpy() for k, v in past_key_values.items()}  # Detach tensors
+            'input_ids': input_ids.detach().cpu().numpy(),
+            'encoder_hidden_states': encoder_hidden_states.detach().cpu().numpy(),
+            'encoder_attention_mask': encoder_attention_mask.detach().cpu().numpy(),
+            **{k: v.detach().cpu().numpy() for k, v in past_key_values.items()}
         }
         outputs = session.run(None, inputs)
         print(f"Decoder past verification: Logits shape {outputs[0].shape}, Past key-values {len(outputs[1:])} tensors")
@@ -102,7 +100,7 @@ class TextDecoderWrapper(Module):
             encoder_attention_mask=encoder_attention_mask,
             past_key_values=past_key_values,
             use_cache=True,
-            return_dict=False  # Ensure tuple output for ONNX
+            return_dict=False
         )
         logits = outputs[0]
         past_key_values = outputs[1] if len(outputs) > 1 else None
@@ -165,7 +163,7 @@ def export_blip_components(model_id: str, output_dir: Path) -> bool:
 
         # --- 3a. Decoder Init Export ---
         print("Exporting Decoder (Initial Pass)...")
-        dummy_decoder_input_ids = torch.tensor([[text_config.bos_token_id]], dtype=torch.long, device=DEVICE)
+        dummy_decoder_input_ids = torch.tensor([[text_config.bos_token_id or 0]], dtype=torch.long, device=DEVICE)
         dummy_encoder_hidden_states = dummy_image_embeds
         dummy_encoder_attention_mask = torch.ones(dummy_encoder_hidden_states.shape[:2], dtype=torch.long, device=DEVICE)
 
@@ -205,7 +203,7 @@ def export_blip_components(model_id: str, output_dir: Path) -> bool:
 
         # --- 3b. Decoder With Past Export ---
         print("Exporting Decoder (With Past)...")
-        dummy_past_input_ids = torch.tensor([[7592]], dtype=torch.long, device=DEVICE)  # Dummy token
+        dummy_past_input_ids = torch.tensor([[7592]], dtype=torch.long, device=DEVICE)
         input_names_past = ['input_ids', 'encoder_hidden_states', 'encoder_attention_mask'] + list(flat_past_init.keys())
         flat_present_past = flatten_past_key_values(dummy_past_key_values, "present_")
         output_names_past = ["logits"] + list(flat_present_past.keys())
@@ -252,76 +250,6 @@ def export_blip_components(model_id: str, output_dir: Path) -> bool:
         traceback.print_exc()
         return False
 
-# --- Generation Loop Example ---
-def run_generation_loop(image_path: str, output_dir: Path, max_length: int = 32) -> str:
-    """Runs a generation loop using ONNX models for image captioning."""
-    # Load processor
-    processor = BlipProcessor.from_pretrained(output_dir)
-    
-    # Load ONNX sessions
-    vision_session = ort.InferenceSession(str(output_dir / "vision_encoder.onnx"), providers=['CPUExecutionProvider'])
-    decoder_init_session = ort.InferenceSession(str(output_dir / "decoder_init.onnx"), providers=['CPUExecutionProvider'])
-    decoder_past_session = ort.InferenceSession(str(output_dir / "decoder_with_past.onnx"), providers=['CPUExecutionProvider'])
-
-    # Preprocess image
-    image = Image.open(image_path).convert("RGB")
-    inputs = processor(images=image, return_tensors="pt")
-    pixel_values = inputs['pixel_values'].numpy()
-
-    # Run vision encoder
-    image_embeds = vision_session.run(None, {'pixel_values': pixel_values})[0]
-    encoder_attention_mask = np.ones(image_embeds.shape[:2], dtype=np.int64)
-
-    # Initialize generation
-    generated_ids = [processor.tokenizer.bos_token_id]
-    past_key_values = None
-
-    for _ in range(max_length):
-        input_ids = np.array([generated_ids[-1]], dtype=np.int64).reshape(1, 1)
-
-        if past_key_values is None:
-            # Initial decoder pass
-            inputs = {
-                'input_ids': input_ids,
-                'encoder_hidden_states': image_embeds,
-                'encoder_attention_mask': encoder_attention_mask
-            }
-            outputs = decoder_init_session.run(None, inputs)
-            logits = outputs[0]
-            past_key_values = {f"past_key_{i//2}" if i % 2 == 0 else f"past_value_{i//2}": outputs[i+1] for i in range(len(outputs[1:]))}
-        else:
-            # Subsequent decoder passes
-            inputs = {
-                'input_ids': input_ids,
-                'encoder_hidden_states': image_embeds,
-                'encoder_attention_mask': encoder_attention_mask,
-                **past_key_values
-            }
-            outputs = decoder_past_session.run(None, inputs)
-            logits = outputs[0]
-            past_key_values = {f"present_key_{i//2}" if i % 2 == 0 else f"present_value_{i//2}": outputs[i+1] for i in range(len(outputs[1:]))}
-
-        # Get next token
-        next_token_id = np.argmax(logits[:, -1, :], axis=-1).item()
-        generated_ids.append(next_token_id)
-
-        # Stop at EOS
-        if next_token_id == processor.tokenizer.eos_token_id:
-            break
-
-    # Decode caption
-    caption = processor.decode(generated_ids, skip_special_tokens=True)
-    return caption
-
 # --- Main Execution ---
 if __name__ == "__main__":
-    success = export_blip_components(MODEL_ID, OUTPUT_DIR)
-    if success:
-        print("\nRunning example generation loop...")
-        # Replace with a path to a test image
-        test_image_path = r"C:\Users\voutl\OneDrive\Pictures\ai.png"
-        if os.path.exists(test_image_path):
-            caption = run_generation_loop(test_image_path, OUTPUT_DIR)
-            print(f"Generated caption: {caption}")
-        else:
-            print("Please provide a valid test image path to run the generation loop.")
+    export_blip_components(MODEL_ID, OUTPUT_DIR)

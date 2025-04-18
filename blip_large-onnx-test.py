@@ -6,7 +6,7 @@ from transformers import BlipProcessor
 import traceback
 
 # --- Configuration ---
-MODEL_DIR = Path("./blip_manual_onnx_export")
+MODEL_DIR = Path("./blip_large_onnx")
 VISION_MODEL_PATH = MODEL_DIR / "vision_encoder.onnx"
 DECODER_INIT_PATH = MODEL_DIR / "decoder_init.onnx"
 DECODER_PAST_PATH = MODEL_DIR / "decoder_with_past.onnx"

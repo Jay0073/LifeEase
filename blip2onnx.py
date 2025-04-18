@@ -9,8 +9,8 @@ from typing import Dict
 from torch.nn import Module
 
 # --- Configuration ---
-MODEL_ID = "Salesforce/blip-image-captioning-base"
-OUTPUT_DIR = Path("./blip_manual_onnx_export")
+MODEL_ID = "Salesforce/blip-image-captioning-large"
+OUTPUT_DIR = Path("./blip_large_onnx")
 IMG_SIZE = 384  # Define image size based on model config
 MAX_LENGTH = 32  # Example max sequence length for text
 OPSET_VERSION = 14  # ONNX Opset version

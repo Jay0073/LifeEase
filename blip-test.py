@@ -93,7 +93,7 @@ def main():
 
         # Example: Image input
         print("\n--- Image Example ---")
-        image_path = r"C:\Users\voutl\OneDrive\Pictures\Myself\Snapchat-530657582.jpg"  # Replace with your image path
+        image_path = r"C:\Users\voutl\OneDrive\Pictures\Screenshots\Screenshot (2).png"  # Replace with your image path
         response = generate_response(
             gemma_model,
             blip_processor,
@@ -101,7 +101,6 @@ def main():
             device,
             image_path=image_path
         )
-        print("\nResponse:", response)
 
     except Exception as e:
         print(f"Error in main: {e}")
